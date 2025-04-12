@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>Countdown</title>
+  <link rel="manifest" href="manifest.json" />
+  <link rel="apple-touch-icon" href="icon-192.png" />
+  <meta name="theme-color" content="#121212" />
+  <style>
+    body {
+      background-color: #121212;
+      color: #ffffff;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-start;
+      height: 100vh;
+      margin: 0;
+      padding: 4vh 5vw;
+      text-align: center;
+    }
+    input, button {
+      margin: 10px 0;
+      padding: 14px;
+      font-size: 18px;
+      border: none;
+      border-radius: 5px;
+      width: 100%;
+      box-sizing: border-box;
+    }
+    input:focus, button:focus {
+      outline: 2px solid #888;
+    }
+    button:hover {
+      background-color: #333;
+      cursor: pointer;
+    }
+    #countdown {
+      font-size: clamp(24px, 6vw, 48px);
+      margin-top: 20px;
+      position: sticky;
+      bottom: 10px;
+      background: #121212;
+      padding: 10px;
+      border-radius: 10px;
+      z-index: 100;
+    }
+    .hidden {
+      display: none;
+    }
+    #instruction {
+      background-color: #1e1e1e;
+      border: 1px solid #444;
+      border-radius: 10px;
+      padding: 15px;
+      margin-top: 10px;
+      max-width: 100%;
+      font-size: 16px;
+      line-height: 1.5;
+    }
+    ol {
+      padding-left: 20px;
+      text-align: left;
+    }
+    body::after {
+      content: "";
+      display: block;
+      height: 5vh;
+    }
+    @media (prefers-color-scheme: light) {
+      body {
+        background-color: #ffffff;
+        color: #000000;
+      }
+      #instruction {
+        background-color: #f2f2f2;
+        border: 1px solid #ccc;
+      }
+      button:hover {
+        background-color: #ddd;
+      }
+    }
+  </style>
+</head>
+<body>
+  <h1>Countdown</h1>
+  <label for="datetime">Select Date and Time:</label>
+  <input type="datetime-local" id="datetime" aria-label="Select Date and Time" />
+  <button onclick="checkAndStartCountdown()">Start Countdown</button>
+
+  <div id="prompt" class="hidden">
+    <div id="instruction">
+      <p>The selected time is under 99:59:59. To use your native timer:</p>
+      <ol>
+        <li>Open the <b>Clock</b> app on your phone</li>
+        <li>Go to the <b>Timer</b> section</li>
+        <li>Set the timer to: <span id="roundedTime"></span></li>
+        <li>Start the timer when your clock hits: <span id="roundedClock"></span></li>
+      </ol>
+      <button onclick="startCountdown(window._tempTargetTime)">Use Web Countdown Instead</button>
+    </div>
+  </div>
+
+  <div id="countdown"></div>
+
+  <script>
+    let countdownInterval;
+
+    function checkAndStartCountdown() {
+      const datetimeInput = document.getElementById("datetime").value;
+      if (!datetimeInput) {
+        return showCustomAlert("Please select a date and time.");
+      }
+
+      const targetTime = new Date(datetimeInput).getTime();
+      const now = Date.now();
+      const diff = targetTime - now;
+
+      if (diff < 0) {
+        return showCustomAlert("Please select a future time.");
+      }
+
+      if (diff <= 359999000) {
+        showRoundedInstructions(diff, targetTime);
+        document.getElementById("prompt").classList.remove("hidden");
+        window._tempTargetTime = targetTime;
+      } else {
+        startCountdown(targetTime);
+      }
+    }
+
+    function showRoundedInstructions(diff, target) {
+      const totalMinutes = Math.round(diff / 60000);
+      const hours = Math.floor(totalMinutes / 60);
+      const minutes = totalMinutes % 60;
+      const clockTime = new Date(target);
+      clockTime.setSeconds(0);
+
+      const roundedClock = clockTime.toLocaleTimeString([], {
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+
+      document.getElementById("roundedTime").innerText = `${hours}h ${minutes}m`;
+      document.getElementById("roundedClock").innerText = roundedClock;
+    }
+
+    function startCountdown(targetTime) {
+      document.getElementById("prompt").classList.add("hidden");
+      clearInterval(countdownInterval);
+
+      countdownInterval = setInterval(() => {
+        const now = Date.now();
+        const remaining = targetTime - now;
+
+        if (remaining <= 0) {
+          clearInterval(countdownInterval);
+          document.getElementById("countdown").innerText = "00:00:00";
+          if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
+          showCustomAlert("Time's up!");
+          return;
+        }
+
+        const hours = Math.floor(remaining / (1000 * 60 * 60));
+        const minutes = Math.floor((remaining % (1000 * 60 * 60)) / (1000 * 60));
+        const seconds = Math.floor((remaining % (1000 * 60)) / 1000);
+
+        document.getElementById("countdown").innerText =
+          `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
+      }, 1000);
+    }
+
+    function showCustomAlert(message) {
+      const countdownDiv = document.getElementById("countdown");
+      countdownDiv.innerText = message;
+      countdownDiv.style.color = "#ff5555";
+    }
+
+    if ("serviceWorker" in navigator) {
+      navigator.serviceWorker.register("sw.js")
+        .then(() => console.log("✅ Service Worker registered"))
+        .catch(err => console.error("❌ Service Worker failed:", err));
+    }
+  </script>
+</body>
+</html>
